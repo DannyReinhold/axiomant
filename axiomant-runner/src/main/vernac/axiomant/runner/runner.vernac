@@ -1,0 +1,32 @@
+namespace axiomant.runner;
+
+id ExecutionId;
+value Command(String) validates {
+    require(!self.string().isBlank(), "Command must not be blank");
+};
+value ExecutionStatus = PENDING | RUNNING | COMPLETED | FAILED;
+
+aggregate TaskExecution[ExecutionId](Command, mut ExecutionStatus) behavior {
+    modify void start() {
+        self.executionStatus(ExecutionStatus.RUNNING);
+    }
+    modify void complete() {
+        self.executionStatus(ExecutionStatus.COMPLETED);
+    }
+    modify void fail() {
+        self.executionStatus(ExecutionStatus.FAILED);
+    }
+} list TaskExecutions;
+
+repository TaskExecutionRepository for TaskExecution {
+    find TaskExecutions withStatus(ExecutionStatus status)
+        where executionStatus = :status;
+}
+
+usecase SubmitTask(Command) returns ExecutionId uses TaskExecutionRepository taskExecutions behavior {
+    execute {
+        var execution = TaskExecution.create(command, ExecutionStatus.PENDING);
+        self.taskExecutions().save(execution);
+        return execution.id();
+    }
+}

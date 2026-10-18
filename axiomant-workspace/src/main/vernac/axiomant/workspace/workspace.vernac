@@ -1,0 +1,26 @@
+namespace axiomant.workspace;
+
+id WorkspaceId;
+value ProjectName(String) validates {
+    require(!self.string().isBlank(), "Project name must not be blank");
+};
+value WorkspaceState = ACTIVE | ARCHIVED;
+
+aggregate Workspace[WorkspaceId](ProjectName, mut WorkspaceState) behavior {
+    modify void archive() {
+        self.workspaceState(WorkspaceState.ARCHIVED);
+    }
+} list Workspaces;
+
+repository WorkspaceRepository for Workspace {
+    find Workspaces withState(WorkspaceState state)
+        where workspaceState = :state order by projectName;
+}
+
+usecase CreateWorkspace(ProjectName) returns WorkspaceId uses WorkspaceRepository workspaces behavior {
+    execute {
+        var workspace = Workspace.create(projectName, WorkspaceState.ACTIVE);
+        self.workspaces().save(workspace);
+        return workspace.id();
+    }
+}
